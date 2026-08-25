@@ -7,6 +7,7 @@ use bevy_framepace::*;
 use rand::prelude::*;
 
 const FPS_CAP: f64 = 30.0;
+const CUBE_SOUND: &str = "cube.wav";
 const CUBE_DESPAWN_TIME: f32 = 5.0;
 const CAMERA_ANGULAR_SPEED: f32 = 1.0;
 
@@ -18,20 +19,33 @@ fn main() {
             FramepacePlugin,
             FrameTimeDiagnosticsPlugin::default(),
         ))
+        .init_resource::<Sound>()
         .init_resource::<CubeCounter>()
-        .add_systems(Startup, (setup_world, setup_ui, setup_framepace))
+        .add_systems(
+            Startup,
+            (load_sounds, setup_framepace, setup_world, setup_ui),
+        )
         .add_systems(
             Update,
             (
+                cube_timer,
+                handle_collison_event,
                 space_bar,
                 move_camera,
-                cube_timer,
                 update_cube_count_text,
                 update_fps_text,
             ),
         )
         .add_observer(spawn_cube)
         .run();
+}
+
+fn load_sounds(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(Sound(asset_server.load(CUBE_SOUND)));
+}
+
+fn setup_framepace(mut settings: ResMut<FramepaceSettings>) {
+    settings.limiter = Limiter::from_framerate(FPS_CAP);
 }
 
 fn setup_world(
@@ -89,9 +103,11 @@ fn setup_ui(mut commands: Commands) {
         });
 }
 
-fn setup_framepace(mut settings: ResMut<FramepaceSettings>) {
-    settings.limiter = Limiter::from_framerate(FPS_CAP);
-}
+#[derive(Resource, Deref, Default)]
+struct Sound(Handle<AudioSource>);
+
+#[derive(Resource, Default)]
+struct CubeCounter(i32);
 
 #[derive(Component)]
 struct MainCamera;
@@ -103,9 +119,6 @@ struct Cube;
 struct Lifetime {
     timer: Timer,
 }
-
-#[derive(Resource, Default)]
-struct CubeCounter(i32);
 
 #[derive(Component)]
 struct CubeCountText;
@@ -151,6 +164,7 @@ fn spawn_cube(
         Mesh3d(meshes.add(Cuboid::from_length(size))),
         MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
         Transform::from_xyz(position.x, position.y, position.z),
+        CollisionEventsEnabled,
         Lifetime {
             timer: Timer::from_seconds(CUBE_DESPAWN_TIME, TimerMode::Once),
         },
@@ -175,6 +189,18 @@ fn cube_timer(
 
             cube_counter.0 -= 1;
         }
+    }
+}
+
+fn handle_collison_event(
+    mut commands: Commands,
+    mut collision_reader: MessageReader<CollisionStart>,
+    sound: Res<Sound>,
+) {
+    for event in collision_reader.read() {
+        println!("{} and {} collided.", event.collider1, event.collider2);
+
+        commands.spawn((AudioPlayer::new(sound.clone()), PlaybackSettings::DESPAWN));
     }
 }
 
