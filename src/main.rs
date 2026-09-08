@@ -97,7 +97,7 @@ fn setup_ui(mut commands: Commands) {
                 .spawn(Text::new("FPS: "))
                 .with_child((TextSpan::default(), FPSText));
 
-            parent.spawn(Text::new("Press space to spawn a cube"));
+            parent.spawn(Text::new("Press Space to spawn a cube"));
 
             parent.spawn(Text::new("Press A or D to pan"));
         });
