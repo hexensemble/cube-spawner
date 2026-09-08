@@ -13,3 +13,5 @@ Features:
 - Collision sound
 - Camera pan via user input (A & D)
 - Text overlay UI
+- Cube counter
+- FPS counter
